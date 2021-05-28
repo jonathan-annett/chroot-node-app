@@ -328,7 +328,7 @@ relink() {
 }
 
 remove_link() {
-  [[ -e $1 ]] && chmod 777 && rm $1
+  [[ -e $1 ]] && chmod 777 $1 && rm $1
   BASE=$(basename $1)
   LINKNAME=/usr/bin/$BASE
   [[ -e $LINKNAME ]] && rm $LINKNAME
