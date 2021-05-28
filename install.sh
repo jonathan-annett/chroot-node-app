@@ -6,7 +6,7 @@ if [ "$(whoami)" != "root" ] ; then
 fi
 
 apt-get update
-apt-get install tree htop inotify-tools squashfs-tools aufs-tools inetutils-traceroute
+apt-get install -y tree htop inotify-tools squashfs-tools aufs-tools inetutils-traceroute
 
 if [ -e ./make-chroot-jail.sh ]; then
    [ -e /usr/local/bin/make-chroot-jail ] && chmod 777 /usr/local/bin/make-chroot-jail && rm /usr/local/bin/make-chroot-jail
