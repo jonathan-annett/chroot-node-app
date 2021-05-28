@@ -290,10 +290,16 @@ COLORS
 
 copy_app(){
 
+
 pushd $SRC
 
-while npm install | grep added ; do npm install | grep added ; done
-
+#run npm install as owner of app until no files are added
+U=$( ls -uld . | cut -d ' ' -f 3 )
+echo "while npm install | grep added ; do npm install | grep added ; done" | su $U
+RESULT="$(echo "npm install || echo FAIL" | su $U)"
+if [[ "$RESULT" == "FAIL" ]]; then
+  exit 1 
+fi
 popd
 
 cp -R $SRC/ $JAIL/app
