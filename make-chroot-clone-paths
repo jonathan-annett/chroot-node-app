@@ -1,0 +1,10 @@
+/etc/bash_completion.d
+/etc/gai.conf
+/etc/pam.d
+/etc/ssl
+/etc/terminfo
+/lib/terminfo
+/lib/x86_64-linux-gnu/libnss_dns.so.2
+/usr/lib/locale/locale-archive
+/usr/lib/x86_64-linux-gnu/libnss_dns.so.2
+/usr/share/locale/locale.alias
