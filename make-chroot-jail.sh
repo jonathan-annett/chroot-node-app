@@ -686,7 +686,6 @@ echo "" >> $CLONE_LIST.tmp
 
 for F in \$(grep ENOENT $JAIL$MISSING | grep ^open | cut -d '"' -f 2)
 do
-  B=$(basename $F)
   if [[ -e \$F ]]; then
     P=\$(realpath \$F)
     if [[ -e $JAIL\$P ]]; then
