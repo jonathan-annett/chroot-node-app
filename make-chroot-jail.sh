@@ -6,14 +6,18 @@ if [[ "$(whoami)" != "root" ]]; then
 fi
 
 if [[ "$1" == "" ]]; then
-   echo "usage: $(basename $0) username [app source path]"
-   echo "a new user will be added, and chroot entry scripts created"
-   echo "WARNING - if the username exists, app processes will be terminated, and the user will be deleted"
-   exit 0
+    echo "usage : sudo $(basename $0) username [ /path/to/app ] [ramdiskMB]"
+    echo "   note - the username specifed should be that does not yet exist. "
+    echo "         (or has been previously used if you are updating)"
+    echo "        - if you don't specify /path/to/app,  /app will be assume"
+    echo "           this is the the source path that will be used to create the chroot file system"
+    exit 0
 fi
 
 JAILED=$1
 JAILROOT=/chrootjail
+
+
 
 if [[ "$2" != "" ]]; then
    SRC=$2
@@ -38,6 +42,18 @@ else
   exit 0
 fi
 
+
+peer_file() {
+  echo "$(dirname $(realpath $0))/$1"
+}
+
+CLONE_LIST=$(peer_file make-chroot-clone-paths)    
+ETC_FILES=$(peer_file make-chroot-etc-files)    
+BIN_LIST=$(peer_file make-chroot-binaries)    
+EXCLUDE_LIST=$(peer_file make-chroot-exlude-squash)    
+
+
+
 JAIL=$JAILROOT/$JAILED
 JAIL_MOUNT=${JAILED}_ramDisk
 JAIL_CLI=$JAILROOT/${JAILED}_cli
@@ -48,6 +64,7 @@ JAIL_LOGS=$JAILROOT/${JAILED}_logs
 JAIL_REPL=$JAILROOT/${JAILED}_repl
 JAIL_RSYNC=$JAILROOT/${JAILED}_rsync
 JAIL_ADDBIN=$JAILROOT/${JAILED}_addbin
+JAIL_TRACE=$JAILROOT/${JAILED}_runtime_trace
 
 
 clean_umount() {
@@ -76,6 +93,7 @@ clean_umount $JAIL/mnt/squash/usrlib.union
 clean_umount $JAIL/mnt/squash/lib.union
 clean_umount $JAIL/mnt/squash/usrbin.union
 clean_umount $JAIL/mnt/squash/usrlocal.union
+clean_umount $JAIL/mnt/squash/etc.union
 clean_umount $JAIL/mnt/squash/root
 clean_umount $JAIL/proc
 
@@ -112,7 +130,7 @@ mkdir -p $JAIL/usr/sbin
 mkdir -p $JAIL/usr/local/bin
 mkdir -p $JAIL/home/$JAILED
 
-chown root.root $JAIL
+chown root:root $JAIL
 
 mknod -m 666 $JAIL/dev/null c 1 3
 mknod -m 666 $JAIL/dev/random c 1 8
@@ -121,14 +139,17 @@ mknod -m 666 $JAIL/dev/zero c 1 5
 mknod -m 666 $JAIL/dev/tty  c 5 0
 
 chmod 0666 $JAIL/dev/{null,tty,zero}
-chown root.tty $JAIL/dev/tty
+chown root:tty $JAIL/dev/tty
 }
 
+
+
 setup_etc(){
-for FILE in $(cat make-chroot-etc-files) 
+for FILE in $(cat $ETC_FILES ) 
 do
   cp /etc/$FILE $JAIL/etc
 done
+chown root:root -R $JAIL/etc/*
 }
 
 setup_libs(){
@@ -142,25 +163,29 @@ cp /usr/lib/x86_64-linux-gnu/libncurses.so.6.2 $JAIL/usr/lib/x86_64-linux-gnu/
 cp /usr/lib/x86_64-linux-gnu/libncursesw.so.6 $JAIL/usr/lib/x86_64-linux-gnu/
 
 chmod 644 $JAIL/etc/nsswitch.conf
+chmod 644 $JAIL/etc/resolv.conf
 
-for DIR in $(cat make-chroot-clone-paths)
+
+for CLONE in $(cat $CLONE_LIST ) 
 do
-  [ -d $DIR ] && cp -R $DIR $JAIL$DIR 
-  [ -f $DIR ] && mkdir -p $JAIL$(dirname $DIR) 
-  [ -f $DIR ] && cp $DIR $JAIL$DIR  
+  [[ -d $CLONE ]] && cp -R $CLONE $JAIL$CLONE 
+  if [[ -f $CLONE ]]; then
+      mkdir -p $JAIL$(dirname $CLONE) 
+      cp $CLONE $JAIL$CLONE
+  fi
 done
-
 }
 
 copy_binary() {
     
 	BINARY=$(which $1)
 
-    [ "$BINARY" == "" ] && echo "$1 is not a valid binary"
-
-    [ "$BINARY" == "" ] || cp $BINARY $JAIL/$BINARY
-  
-    [ "$BINARY" == "" ] || copy_dependencies $BINARY
+    if [[ "$BINARY" == "" ]]; then 
+       echo "$1 is not a valid binary"
+    else 
+       cp $BINARY $JAIL/$BINARY
+       copy_dependencies $BINARY
+    fi
 }
 
 # http://www.cyberciti.biz/files/lighttpd/l2chroot.txt
@@ -176,7 +201,7 @@ copy_dependencies(){
 		d="$(dirname $i)"
 		f="$(basename $i)"
 		
-		[ ! -d $JAIL$d ] && mkdir -p $JAIL$d || :
+		[[ ! -d $JAIL$d ]] && mkdir -p $JAIL$d || :
 
 		/bin/cp $i $JAIL$d/$f
 		
@@ -205,9 +230,9 @@ copy_binaries(){
     
 ln -s /usr/bin $JAIL/bin
 
-for f in $(cat make-chroot-binaries) 
+for BIN in $(cat $BIN_LIST)
 do
-  copy_binary $f
+  copy_binary $BIN
 done
 
 mkdir -p $JAIL/usr/local/lib
@@ -220,6 +245,7 @@ copy_node_global pm2
 #cp -R /var/* $JAIL/var/
 
 rm ./.ldd_tmp
+echo "."
 }
 
 setup_user(){
@@ -241,11 +267,9 @@ DEETS
 PW_TMP=
 
 cp -r /home/$JAILED/ $JAIL/home
-chgrp $JAILED $JAIL/home/$JAILED/
-chown $JAILED $JAIL/home/$JAILED/
+chown $JAILED:$JAILED $JAIL/home/$JAILED/
 
-chgrp $JAILED -R $JAIL/home/$JAILED/.*
-chown $JAILED -R $JAIL/home/$JAILED/.*
+chown $JAILED:$JAILED -R $JAIL/home/$JAILED/.*
 
 cat <<COLORS >$JAIL/home/$JAILED/.bashrc
 PS1='\[\033[1;36m\]\u\[\033[1;31m\]@\[\033[1;32m\]\h:\[\033[1;35m\]\w\[\033[1;31m\]\$\[\033[0m\] '
@@ -258,14 +282,11 @@ copy_app(){
 
 cp -R $SRC/ $JAIL/app
 
-chgrp $JAILED $JAIL/app/
-chown $JAILED $JAIL/app/
+chown $JAILED:$JAILED $JAIL/app/
 
-chgrp $JAILED -R $JAIL/app/.*
-chown $JAILED -R $JAIL/app/.*
+chown $JAILED:$JAILED -R $JAIL/app/.*
 
-chgrp $JAILED -R $JAIL/app/*
-chown $JAILED -R $JAIL/app/*
+chown $JAILED:$JAILED -R $JAIL/app/*
 
 }
 
@@ -282,24 +303,49 @@ relink() {
   echo created $BASE command 
 }
 
+remove_link() {
+  [[ -e $1 ]] && chmod 777 && rm $1
+  BASE=$(basename $1)
+  LINKNAME=/usr/bin/$BASE
+  [[ -e $LINKNAME ]] && rm $LINKNAME
+}
+
+
 create_cli(){
 [[ -e $JAIL_CLI ]] && chmod 777 $JAIL_CLI
 cat <<BASHER > $JAIL_CLI
 #!/usr/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
 [[ -e $JAIL/proc/1 ]] || mount -t proc proc $JAIL/proc
+
+if [[ "\$1" != "root" ]]; then
+
+    if [[ "\$1" == "" ]]; then
+        CMDLINE="cd /app;bash;"
+    else
+        CMDLINE="\$@"
+    fi
+
 TERM=vt100 \\
 HOME=/home/$JAILED \\
 USER=$JAILED \\
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \\
-chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /usr/bin/bash -c "cd /app;bash;"
+chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /usr/bin/bash -c "\$CMDLINE"
 
+else
 
+TERM=vt100 \\
+HOME=/home/$JAILED \\
+USER=$JAILED \\
+PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \\
+chroot $JAIL /usr/bin/bash
+
+fi
 
 BASHER
 
@@ -308,17 +354,18 @@ relink $JAIL_CLI
 }
 
 create_start(){
+    
 SCRIPT=/home/$JAILED/start.sh
 [[ -e $JAIL_START ]] && chmod 777 $JAIL_START
 cat <<NODER > $JAIL_START
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
 cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
@@ -336,7 +383,7 @@ HOME=/home/$JAILED \
 USER=$JAILED \
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \
 chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "$SCRIPT"
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
 
 NODER
 
@@ -351,12 +398,12 @@ SCRIPT=/home/$JAILED/restart.sh
 cat <<NODER > $JAIL_RESTART
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
 cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
@@ -374,7 +421,7 @@ HOME=/home/$JAILED \
 USER=$JAILED \
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \
 chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "$SCRIPT"
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
 
 NODER
 
@@ -388,12 +435,12 @@ SCRIPT=/home/$JAILED/stop.sh
 cat <<NODER > $JAIL_STOP
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
 cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
@@ -410,7 +457,7 @@ HOME=/home/$JAILED \
 USER=$JAILED \
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \
 chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "$SCRIPT"
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
 
 NODER
 
@@ -424,12 +471,12 @@ SCRIPT=/home/$JAILED/logs.sh
 cat <<NODER > $JAIL_LOGS
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
 cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
@@ -447,7 +494,7 @@ HOME=/home/$JAILED \
 USER=$JAILED \
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \
 chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "$SCRIPT"
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
 
 NODER
 
@@ -461,12 +508,12 @@ SCRIPT=/home/$JAILED/repl.sh
 cat <<NODER > $JAIL_REPL
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 
+   sudo \$0 "\$@"
    exit 0
 fi
 
 
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
 cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
@@ -483,7 +530,7 @@ HOME=/home/$JAILED \\
 USER=$JAILED \\
 PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \\
 chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "$SCRIPT"
-[ -f $JAIL$SCRIPT ] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
+[[ -f $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT && rm $JAIL$SCRIPT
 
 NODER
 
@@ -496,7 +543,7 @@ create_addbin(){
 cat <<BASHER > $JAIL_ADDBIN
 #!/bin/bash
 if [[ "\$(whoami)" != "root" ]]; then
-   sudo \$0 \$1
+   sudo \$0 "\$@"
    exit 0
 fi
 
@@ -505,11 +552,12 @@ copy_binary() {
     
     BINARY=\$(which \$1)
 
-    [ "\$BINARY" == "" ] && echo "\$1 is not a valid binary"
-
-    [ "\$BINARY" == "" ] || cp $BINARY $JAIL/\$BINARY
-  
-    [ "\$BINARY" == "" ] || copy_dependencies \$BINARY
+    if [[ "\$BINARY" == "" ]] ; then
+       echo "\$1 is not a valid binary"
+    else 
+       cp \$BINARY $JAIL/\$BINARY
+       copy_dependencies \$BINARY
+    fi
 }
 
 copy_dependencies(){
@@ -524,7 +572,7 @@ copy_dependencies(){
         d="\$(dirname \$i)"
         f="\$(basename \$i)"
         
-        [ ! -d $JAIL\$d ] && mkdir -p $JAIL\$d || :
+        [[ ! -d $JAIL\$d ]] && mkdir -p $JAIL\$d || :
 
         /bin/cp \$i $JAIL\$d/\$f
         
@@ -542,6 +590,7 @@ copy_dependencies(){
         /bin/cp \$sldl $JAIL\$sldlsubdir
         echo -n "."
     fi
+    echo "."
 }
 
 
@@ -554,6 +603,111 @@ relink $JAIL_ADDBIN
 
 }
 
+create_runtime_trace(){
+
+if [[ "$MB" == "0" ]]; then
+
+
+SCRIPT=/home/$JAILED/tracer.sh
+[[ -e $JAIL$SCRIPT ]] && chmod 777 $JAIL$SCRIPT
+cat <<BASH > $JAIL$SCRIPT
+#!/bin/bash
+    echo "stracing: \$@"
+    strace -e trace=open,openat \$@ 2>&1  | cut -d '"' -f 2  | uniq
+
+BASH
+chmod 555 $JAIL$SCRIPT
+MISSING=/var/log/strace-missing
+OUTPUT=/var/log/strace-output
+mkdir $JAIL/var/log
+touch $JAIL$MISSING
+touch $JAIL$OUTPUT
+chown $JAILED:$JAILED $JAIL$MISSING $JAIL$OUTPUT
+
+
+[[ -e $JAIL_TRACE ]] && chmod 777 $JAIL_TRACE
+cat <<LOCAL2 > $JAIL_TRACE
+#!/usr/bin/bash
+
+if [[ "\$(whoami)" != "root" ]]; then
+   sudo \$0 "\$@"
+   exit 0
+fi
+
+[[ -e $JAIL/home/$JAILED/runime_tracer.sh ]] && chmod 777 $JAIL/home/$JAILED/runime_tracer.sh
+cat <<INLINE > $JAIL/home/$JAILED/runime_tracer.sh
+#!/bin/bash
+echo "stracing: \$@"
+strace -e trace=open,openat \$@ 2>> $MISSING 1>> $OUTPUT
+INLINE
+chmod 755 $JAIL/home/$JAILED/runime_tracer.sh
+
+mkdir -p $JAIL/var/log
+echo  "# running \$@" >$JAIL$MISSING
+echo  "# running \$@" >$JAIL$OUTPUT
+chown $JAILED:$JAILED $JAIL$MISSING $JAIL$OUTPUT
+
+[[ -e $JAIL/proc/1 ]] || mount -t proc proc $JAIL/proc
+    
+TERM=vt100 \\
+HOME=/home/$JAILED \\
+USER=$JAILED \\
+PATH=/usr/local/bin:/usr/bin:/sbin:/bin:/usr/sbin \\
+chroot --userspec=$JAILED:$JAILED --group=$JAILED $JAIL /bin/bash -c "/home/$JAILED/runime_tracer.sh"
+
+
+cat $JAIL$OUTPUT
+
+
+cp $CLONE_LIST $CLONE_LIST.tmp  
+echo "" >> $CLONE_LIST.tmp
+
+for F in \$(grep ENOENT $JAIL$MISSING | grep ^open | cut -d '"' -f 2)
+do
+  B=$(basename $F)
+  if [[ -e \$F ]]; then
+    P=\$(realpath \$F)
+    if [[ -e $JAIL\$P ]]; then
+       echo "\$F exists as $JAIL\$P"
+    else
+       if [[ -e $JAIL\$F ]]; then
+          echo "\$F exists as $JAIL\$F"
+       else
+          OK=0
+          for CHK in \$(ls -d $JAIL/lib $JAIL/usr/lib $JAIL/usr/local/lib )
+          do
+             if [[ -e \$CHK\$F ]];then
+                echo "\$F exists as \$CHK\$F"
+                OK=1
+             fi
+          done     
+          if [[ "\$OK" ==  "0" ]]; then
+            echo "\$F not found,local= \$P"
+            echo "\$F" >> $CLONE_LIST.tmp 
+          fi
+       fi
+    fi
+  fi
+done
+
+echo "" >> $CLONE_LIST.tmp
+
+grep -v "^[[:space:]]*$" $CLONE_LIST.tmp | sort -u > $CLONE_LIST 
+
+
+
+LOCAL2
+
+relink  $JAIL_TRACE
+
+else
+
+remove_link  $JAIL_TRACE
+
+fi
+
+
+}
 
 create_rsync(){
 [[ -e $JAIL_RSYNC ]] && chmod 777 $JAIL_RSYNC
@@ -584,7 +738,7 @@ unionize(){
     mkdir -p $JAIL/mnt/squash/{$BIN.tmp,$BIN.union}
     mount -t aufs \
           -o br=$JAIL/mnt/squash/$BIN.tmp=rw:$SRC=ro \
-          -o udba=reval \
+          -o udba=none \
           none \
           $JAIL/mnt/squash/$BIN.union
 
@@ -593,12 +747,29 @@ unionize(){
 }
 
 
+linkify(){
+    SRC=$1
+    DST=$2
+    rm -rf $DST
+    ln -s $SRC $DST 
+}
+
+
+somefunc() {
+    local message="$1"
+    shift
+    echo "message = $message"
+    echo "other   = $@"
+}
+
+
+
 make_squash (){
     
 
    [[ -e $JAIL.usrbin.sqsh ]] && rm $JAIL.usrbin.sqsh
     
-   mksquashfs $JAIL $JAIL.usrbin.sqsh
+   mksquashfs $JAIL $JAIL.usrbin.sqsh -ef $EXCLUDE_LIST
    mkdir -p $JAIL/mnt/squash/root
    mount $JAIL.usrbin.sqsh $JAIL/mnt/squash/root -t squashfs -o loop
 
@@ -612,7 +783,9 @@ make_squash (){
     
    unionize $JAIL/mnt/squash/root/usr/local $JAIL/usr/local usrlocal ../mnt
 
-    
+   #unionize $JAIL/mnt/squash/root/etc $JAIL/etc etc ./mnt
+   #linkify   $JAIL/mnt/squash/root/etc $JAIL/etc
+
 }
 
 setup_root
@@ -629,9 +802,14 @@ create_stop
 create_logs
 create_repl
 create_addbin
+create_runtime_trace
 
-make_squash
-
+if [[ "$MB" == "0" ]]; then
+   echo "skipping squashfs/aufs/symlinks"
+else
+   echo "setting up squashfs/aufs/symlinks"
+   make_squash
+fi
 
 chroot $JAIL setcap cap_net_bind_service=+ep `which node`
 
