@@ -40,6 +40,8 @@ setcap
 getcap
 telnet
 sg
+dirname
+basename
 stty
 su
 sh
@@ -48,3 +50,9 @@ top
 which
 who
 whoami
+nslookup
+dig
+host
+strace
+uniq
+traceroute
