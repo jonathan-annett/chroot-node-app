@@ -746,7 +746,7 @@ fi
 
 cat <<SYSTEMD > /etc/systemd/system/$JAILSYSTEMD.service
 [Unit]
-Description=$JAILSYSTEMD (chroot node js server)
+Description=$JAILSYSTEMD NodeJS Server
 
 [Service]
 Type=forking
