@@ -11,6 +11,7 @@ if [[ "$1" == "" ]]; then
     echo "         (or has been previously used if you are updating)"
     echo "        - if you don't specify /path/to/app,  /app will be assume"
     echo "           this is the the source path that will be used to create the chroot file system"
+    echo "        - using 0 for ramdiskMB disables the ramdisk, and enables diagnostic mode "
     exit 0
 fi
 
