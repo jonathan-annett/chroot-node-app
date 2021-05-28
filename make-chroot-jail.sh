@@ -17,6 +17,8 @@ fi
 
 JAILED=$1
 JAILROOT=/chrootjail
+JAILSYSTEMD=${JAILED}_systemd_boot
+
 
 
 
@@ -66,7 +68,7 @@ JAIL_REPL=$JAILROOT/${JAILED}_repl
 JAIL_RSYNC=$JAILROOT/${JAILED}_rsync
 JAIL_ADDBIN=$JAILROOT/${JAILED}_addbin
 JAIL_TRACE=$JAILROOT/${JAILED}_runtime_trace
-
+JAIL_INSTALL=$JAILROOT/${JAILED}_install
 
 clean_umount() {
 if grep -qs "$1 " /proc/mounts; then
@@ -732,6 +734,42 @@ fi
 
 }
 
+create_installer () {
+
+[[ -e $JAIL_INSTALL ]] && chmod 777 $JAIL_INSTALL
+cat <<BASHER > $JAIL_INSTALL
+#!/bin/bash
+if [[ "\$(whoami)" != "root" ]]; then
+   sudo \$0 \$1
+   exit 0
+fi
+
+cat <<SYSTEMD > /etc/systemd/system/$JAILSYSTEMD.service
+[Unit]
+Description=$JAILSYSTEMD (chroot node js server)
+
+[Service]
+Type=forking
+WorkingDirectory=/home/$JAILED
+ExecStart=/usr/local/bin/$JAILED_start
+ExecStop=/usr/local/bin/$JAILED_stop
+
+[Install]
+WantedBy=multi-user.target
+
+SYSTEMD
+
+systemctl daemon-reload
+
+systemctl start $JAILSYSTEMD
+systemctl enable $JAILSYSTEMD
+
+BASHER
+
+relink $JAIL_INSTALL
+
+}
+
 create_rsync(){
 [[ -e $JAIL_RSYNC ]] && chmod 777 $JAIL_RSYNC
 cat <<BASHER > $JAIL_RSYNC
@@ -826,6 +864,7 @@ create_logs
 create_repl
 create_addbin
 create_runtime_trace
+create_installer
 
 if [[ "$MB" == "0" ]]; then
    echo "skipping squashfs/aufs/symlinks"
