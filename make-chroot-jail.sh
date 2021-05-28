@@ -146,7 +146,7 @@ chown root:tty $JAIL/dev/tty
 }
 
 copy_auth(){
-   grep -e "^root:" -e "^$JAILED:" /etc/$1 > $JAIL/etc/$1
+   grep -e "^root:" -e "^${JAILED}:" /etc/$1 > $JAIL/etc/$1
 }
 
 setup_etc(){
@@ -268,7 +268,7 @@ PW_TMP=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d /=+)
 cat <<DEETS | adduser $JAILED >/dev/null 2>/dev/null
 $PW_TMP
 $PW_TMP
-
+$JAILED
 
 
 
@@ -850,10 +850,10 @@ make_squash (){
 }
 
 setup_root
-setup_etc
 setup_libs
 copy_binaries
 setup_user
+setup_etc
 copy_app
 
 create_cli
