@@ -751,8 +751,8 @@ Description=$JAILSYSTEMD NodeJS Server
 [Service]
 Type=forking
 WorkingDirectory=/home/$JAILED
-ExecStart=/usr/local/bin/$JAILED_start
-ExecStop=/usr/local/bin/$JAILED_stop
+ExecStart=/usr/local/bin/${JAILED}_start
+ExecStop=/usr/local/bin/${JAILED}_stop
 
 [Install]
 WantedBy=multi-user.target
