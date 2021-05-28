@@ -392,9 +392,10 @@ cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
 pm2 start /app/server.js
-echo "press ctrl-c to exit log view"
-pm2 logs
-
+if [[ "\$1" == "logs" ]]; then
+  echo "press ctrl-c to exit log view"
+  pm2 logs
+fi
 BOOT
 chmod 555 $JAIL$SCRIPT
 
@@ -430,9 +431,10 @@ cat <<BOOT > $JAIL$SCRIPT
 #!/bin/bash
 cd /app
 pm2 restart /app/server.js || pm2 start /app/server.js 
-echo "press ctrl-c to exit log view"
-pm2 logs
-
+if [[ "\$1" == "logs" ]]; then
+   echo "press ctrl-c to exit log view"
+   pm2 logs
+fi
 BOOT
 chmod 555 $JAIL$SCRIPT
 
