@@ -290,6 +290,12 @@ COLORS
 
 copy_app(){
 
+pushd $SRC
+
+while npm install | grep added ; do npm install | grep added ; done
+
+popd
+
 cp -R $SRC/ $JAIL/app
 
 chown $JAILED:$JAILED $JAIL/app/
