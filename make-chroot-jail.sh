@@ -143,13 +143,22 @@ chmod 0666 $JAIL/dev/{null,tty,zero}
 chown root:tty $JAIL/dev/tty
 }
 
-
+copy_auth(){
+   grep -e "^root:" -e "^$JAILED:" /etc/$1 > $JAIL/etc/$1
+}
 
 setup_etc(){
 for FILE in $(cat $ETC_FILES ) 
 do
   cp /etc/$FILE $JAIL/etc
 done
+
+
+copy_auth passwd
+copy_auth shadow
+copy_auth group
+copy_auth gshadow
+
 chown root:root -R $JAIL/etc/*
 }
 
