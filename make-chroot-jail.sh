@@ -317,7 +317,7 @@ relink() {
   chmod 555 $1
 
   BASE=$(basename $1)
-  LINKNAME=/usr/bin/$BASE
+  LINKNAME=/usr/local/bin/$BASE
   [[ -e $LINKNAME ]] && rm $LINKNAME
   
   ln -s $1 $LINKNAME
