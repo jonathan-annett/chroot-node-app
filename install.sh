@@ -19,7 +19,7 @@ if [[ -e ./make-chroot-jail.sh ]]; then
     chmod 755 ./make-chroot-jail.sh  
     chmod 755 /usr/local/bin/make-chroot-jail
     
-    ls -al --colors=always /usr/local/bin/make-chroot-jail
+    ls -al --color=always /usr/local/bin/make-chroot-jail
   
    echo "make-chroot-jail is now installed"
    echo "usage : sudo make-chroot-jail username [ /path/to/app ] [ramdiskMB]"
