@@ -10,9 +10,8 @@ apt-get install -y tree htop inotify-tools squashfs-tools aufs-tools inetutils-t
 
 if [ -e ./make-chroot-jail.sh ]; then
 
-   chmod a+r ./make-chroot-jail.sh  
-   chmod a+x ./make-chroot-jail.sh  
-   chmod a-w ./make-chroot-jail.sh
+   chmod 755 ./make-chroot-jail.sh  
+  
  
    [ -e /usr/local/bin/make-chroot-jail ] && chmod 777 /usr/local/bin/make-chroot-jail && rm /usr/local/bin/make-chroot-jail
    ln -s $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
