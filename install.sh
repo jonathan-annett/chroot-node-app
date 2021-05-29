@@ -11,7 +11,8 @@ apt-get install -y tree htop inotify-tools squashfs-tools aufs-tools inetutils-t
 if [ -e ./make-chroot-jail.sh ]; then
    [ -e /usr/local/bin/make-chroot-jail ] && chmod 777 /usr/local/bin/make-chroot-jail && rm /usr/local/bin/make-chroot-jail
    ln -s $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
-   chmod 555 /usr/local/bin/make-chroot-jail
+ 
+   chmod 555 ./make-chroot-jail.sh
    echo "make-chroot-jail is now installed"
    echo "usage : sudo make-chroot-jail username [ /path/to/app ] [ramdiskMB]"
    echo "   note - the username specifed should be that does not yet exist. "
