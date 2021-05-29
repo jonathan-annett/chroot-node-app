@@ -12,8 +12,8 @@ if [ -e ./make-chroot-jail.sh ]; then
    [ -e /usr/local/bin/make-chroot-jail ] && chmod 777 /usr/local/bin/make-chroot-jail && rm /usr/local/bin/make-chroot-jail
    ln -s $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
    
-   chmod a+rx ./make-chroot-jail.sh /usr/local/bin/make-chroot-jail
-   chmod a-w ./make-chroot-jail.sh /usr/local/bin/make-chroot-jail
+   chmod a+rx $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
+   chmod a-w $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
  
    echo "make-chroot-jail is now installed"
    echo "usage : sudo make-chroot-jail username [ /path/to/app ] [ramdiskMB]"
