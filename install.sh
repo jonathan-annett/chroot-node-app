@@ -13,7 +13,7 @@ if [ -e ./make-chroot-jail.sh ]; then
    chmod 755 ./make-chroot-jail.sh  
   
  
-   [ -e /usr/local/bin/make-chroot-jail ] && chmod 777 /usr/local/bin/make-chroot-jail && rm /usr/local/bin/make-chroot-jail
+   [ -L /usr/local/bin/make-chroot-jail ]  && rm /usr/local/bin/make-chroot-jail
    ln -s $(realpath ./make-chroot-jail.sh) /usr/local/bin/make-chroot-jail
    
   
