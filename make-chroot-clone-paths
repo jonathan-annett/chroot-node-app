@@ -8,3 +8,5 @@
 /usr/lib/locale/locale-archive
 /usr/lib/x86_64-linux-gnu/libnss_dns.so.2
 /usr/share/locale/locale.alias
+/etc/nsswitch.conf
+/etc/resolv.conf
