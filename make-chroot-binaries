@@ -33,6 +33,7 @@ pam_tally2
 pam_timestamp_check
 ps
 rm
+mkdir
 rmdir
 grep
 sed

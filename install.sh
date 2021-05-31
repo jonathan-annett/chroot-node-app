@@ -9,7 +9,7 @@ apt-get update
 apt-get install -y tree htop inotify-tools squashfs-tools aufs-tools inetutils-traceroute
 
 if [[ -e ./make-chroot-jail.sh ]]; then
-
+    
    chmod 755 ./make-chroot-jail.sh  
   
  
